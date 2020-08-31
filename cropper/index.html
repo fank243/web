@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+  <link rel="stylesheet" href="../layui/css/layui.css">
+  <link rel="stylesheet" href="css/cropper.min.css">
+  <script type="text/javascript" src="js/jquery.min.js"></script>
+  <script type="text/javascript" src="../layui/layui.js"></script>
+  <script type="text/javascript" src="js/cropper.min.js"></script>
+  <script type="text/javascript" src="js/jquery-cropper.js"></script>
+</head>
+
+<body>
+  <div class="layui-fluid" style="margin-top: 10px;" id="cropperContent">
+    <div class="layui-row">
+      <div class="layui-col-md12">
+        <div class="layui-form-item">
+          <div class="layui-input-inline" style="width: auto;">
+            <label for="cropperFile" class="layui-btn layui-btn-primary">
+              <i class="layui-icon">&#xe67c;</i>选择图片
+            </label>
+            <input id="cropperFile" class="layui-upload-file" type="file" value="选择图片" name="file">
+          </div>
+          <div class="layui-form-mid layui-word-aux">文件大小在2MB以内</div>
+        </div>
+      </div>
+    </div>
+    <div class="layui-row">
+      <div class="layui-col-sm8">
+        <img id="cropperImg" src="" style="max-width: 100%;" />
+      </div>
+      <div class="layui-col-sm2 layui-col-sm-offset1">
+        <div>
+          <p>预览(100*100)：</p>
+          <div class="img-preview" style="width: 100px;height: 100px;overflow: hidden"></div>
+        </div>
+
+        <br>
+        <button class="layui-btn layui-btn-sm" type="button" onclick="reset()">重置</button>
+        <button class="layui-btn layui-btn-sm" type="button" onclick="crop()">保存修改</button>
+        <br>
+        <br>
+
+        <div>
+          <p>结果：</p>
+          <img style="width: 150px;height: 150px;" src="" alt="" id="result">
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script type="text/javascript">
+    let $img = $("#cropperImg"), $file = $("#cropperFile");
+    // cropper 选项
+    let options = {
+      aspectRatio: 1, // 这个是裁剪框的纵横比，默认是不限制的。例如1:1的头像就写1,16:9可写成16 / 9
+      preview: ".img-preview", // 预览图片选择器，jquery选择器
+      viewMode: 3
+    };
+
+    // 给input添加监听
+    let uploadedImageURL;
+    $file.change(function () {
+      let files = this.files;
+      let file;
+      if (files && files.length) {
+        file = files[0];
+        // 判断是否是图像文件
+        if (/^image\/\w+$/.test(file.type)) {
+          // 如果URL已存在就先释放
+          if (uploadedImageURL) {
+            URL.revokeObjectURL(uploadedImageURL);
+          }
+          uploadedImageURL = URL.createObjectURL(file);
+          // 销毁cropper后更改src属性再重新创建cropper
+          $img.cropper('destroy').attr('src', uploadedImageURL).cropper(options);
+          $file.val('');
+        } else {
+          window.alert('请选择一个图像文件！');
+        }
+      }
+    });
+
+    // reset image to default state
+    function reset() {
+      $('#cropperImg').cropper('reset');
+    }
+    // crop image
+    function crop() {
+      let $image =  $('#cropperImg');
+      let $target = $('#result');
+      $image.cropper('getCroppedCanvas', {
+        width: 150, // 裁剪后的长宽
+        height: 150
+      }).toBlob(function (blob) {
+        // 裁剪后将图片放到指定标签
+        $target.attr('src', URL.createObjectURL(blob));
+        // upload image
+        let formData = new FormData();
+        formData.append('file', blob, 'head.jpg');
+        upload(formData);
+      });
+    }
+
+    // upload image
+    function upload(formData) {
+      $.ajax({
+        method: "post",
+        url: "/common/upload", 
+        data: formData,
+        processData: false,
+        contentType: false,
+        beforeSend: function () {
+          layer.msg("正在上传，请耐心等候...");
+          layer.load(1);
+        },
+        success: function (result) {
+          if (!result.success) {
+            layer.msg(result.msg, { icon: 2 });
+            return;
+          }
+          $("#imgUrl").val(url);
+          $("#showImg").attr("src", ossUrl + url);
+          layer.closeAll();
+          layer.msg(result.msg, { icon: 1 });
+        },
+        error: function () {
+          layer.alert("上传失败，请稍后重试");
+        }
+      });
+    }
+  </script>
+</body>
+
+</html>
